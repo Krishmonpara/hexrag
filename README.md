@@ -2,104 +2,187 @@
 
 # 🧩 hexrag
 
-**A clean, self-hosted RAG agent with an OpenAI-compatible API.**
+### Chat with your own documents — through an OpenAI-compatible API you can fully self-host.
 
-Ingest your documents, then chat with answers grounded in their content — using
-local models (Ollama), OpenAI, or a zero-setup mock backend.
+A clean, layered **RAG** agent built on **FastAPI** + **LlamaIndex**.
+Swap the LLM, embeddings, and vector store with a single line of config.
 
 [![CI](https://github.com/Krishmonpara/hexrag/actions/workflows/ci.yml/badge.svg)](https://github.com/Krishmonpara/hexrag/actions/workflows/ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
+[![Ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/badge/managed%20with-uv-de5fe9.svg)](https://github.com/astral-sh/uv)
+
+[🚀 Quickstart](#-quickstart) · [🔌 Backends](#-swap-backends) · [📡 API](#-api-reference) · [🧱 Architecture](#-architecture)
 
 </div>
 
 ---
 
-hexrag is built on **FastAPI + LlamaIndex** with a strict three-layer architecture
-wired by dependency injection, so the **LLM, embedding model, and vector store are
-all swappable via configuration alone** — no code changes.
+> [!TIP]
+> **Zero setup to try it.** `git clone` → `uv sync` → `uv run hexrag`. The default
+> profile uses a mock model + in-memory store, so it runs with **no API keys and no
+> downloads**. Point a real backend at it whenever you're ready.
 
+## 👀 See it in action
+
+```bash
+# 1 · ingest a document
+curl -s localhost:8001/ingest/text -H 'Content-Type: application/json' \
+  -d '{"file_name":"hex.txt","text":"Project Hex shipped v2 on June 1 2026."}'
+
+# 2 · ask about it — answer is grounded in your docs, with sources attached
+curl -s localhost:8001/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"When did Hex ship v2?"}],"use_context":true}'
 ```
-HTTP (OpenAI client / curl)
-   → routers   (api/)        OpenAI-compatible HTTP surface
-   → services  (services/)   orchestration: ingest, retrieve, prompt, complete
-   → components (components/) swappable adapters: LLM · embeddings · vector store
-   ↑ Settings (profiles: settings.yaml + settings-<profile>.yaml)
+
+```jsonc
+{
+  "object": "chat.completion",
+  "model": "hexrag",
+  "choices": [{
+    "message": { "role": "assistant", "content": "Hex shipped v2 on June 1, 2026." },
+    "finish_reason": "stop",
+    "sources": [                          // ← which chunks grounded the answer
+      { "score": 0.91, "file_name": "hex.txt",
+        "text": "Project Hex shipped v2 on June 1 2026." }
+    ]
+  }]
+}
 ```
 
-## ✨ Highlights
+> [!NOTE]
+> The natural-language `content` above is what you get with a **real** backend
+> (Ollama / OpenAI). The **mock** default returns a placeholder instead — but the
+> retrieval, the `sources`, and the entire response shape are identical. Swapping is
+> [one line of config](#-swap-backends).
 
-- **Runs on a fresh clone with zero setup** — the default profile uses a mock LLM,
-  mock embeddings, and an in-memory vector store. No API keys, no model downloads.
-- **OpenAI-compatible** — `/v1/chat/completions` (with SSE streaming),
-  `/v1/completions`, `/v1/embeddings`. Point any OpenAI SDK at it.
-- **Swap any component with one config line** — `llm.mode`, `embedding.mode`,
-  `vectorstore.database`. Ollama, OpenAI, HuggingFace, and Chroma wired in.
-- **Grounded answers with sources** — every RAG response returns the retrieved
-  chunks (score, text, document id) that informed it.
-- **Clean, documented, tested** — DI-decoupled layers, contract + end-to-end +
-  API-shape tests, ruff, CI, and Docker.
+## ✨ Why hexrag
+
+|  |  |
+|---|---|
+| 🔋 **Batteries included** | Boots on a fresh clone with a mock LLM, mock embeddings, and an in-memory vector store. No keys, no model downloads. |
+| 🔄 **Swap anything via config** | The LLM, embedding model, and vector store each change with **one line** — no code edits. |
+| 🤝 **OpenAI-compatible** | `/v1/chat/completions` (+ streaming), `/v1/completions`, `/v1/embeddings`. Use any OpenAI SDK. |
+| 🔒 **Truly self-hostable** | First-class **Ollama** backend for fully local, private inference. |
+| 📎 **Grounded & cited** | Every RAG answer returns the source chunks (score, text, document) that informed it. |
+| 🧪 **Production hygiene** | DI-decoupled layers, contract + end-to-end + schema tests, `ruff`, CI, and Docker. |
 
 ## 🚀 Quickstart
 
-Requires [uv](https://docs.astral.sh/uv/) (it will fetch Python 3.12 for you).
+Needs [**uv**](https://docs.astral.sh/uv/) — it fetches the right Python for you.
 
 ```bash
 git clone https://github.com/Krishmonpara/hexrag.git
 cd hexrag
 uv sync          # install
-uv run hexrag    # serve http://localhost:8001  (mock backend, no setup)
+uv run hexrag    # serve on http://localhost:8001  (mock backend, no setup)
 ```
 
-Or with Make / Docker:
-
 ```bash
-make run                      # same as uv run hexrag
-docker compose up --build     # containerized
+curl localhost:8001/health        # {"status":"ok"}
+open http://localhost:8001/docs   # interactive Swagger UI
 ```
 
-Health check:
+Prefer Make or Docker?
 
 ```bash
-curl http://localhost:8001/health
-# {"status":"ok"}
+make run                     # = uv run hexrag   (see `make help` for more)
+docker compose up --build    # containerized
 ```
 
-### Try the full RAG flow
+Try the full RAG loop with the bundled sample document:
 
 ```bash
-# 1. ingest the bundled sample document
 uv run python scripts/ingest.py sample_docs/hexrag-overview.md
-
-# 2. ask a grounded question (OpenAI-compatible payload)
-curl -X POST http://localhost:8001/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-        "model": "hexrag",
-        "messages": [{"role":"user","content":"What three layers does hexrag use?"}],
-        "use_context": true
-      }'
+curl localhost:8001/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"What three layers does hexrag use?"}],"use_context":true}'
 ```
 
-The response includes a `choices[].sources` array with the retrieved chunks.
-Interactive API docs: <http://localhost:8001/docs>
+## 🧱 Architecture
 
-> [!NOTE]
-> The default profile uses a **mock LLM**, so the *answer text* is a placeholder
-> (it echoes the assembled grounded prompt). Retrieval, grounding, sources, and
-> the full API shape are real. Switch to a real backend below for real answers.
+A strict three-layer onion wired by dependency injection. Each layer knows only the
+one beneath it, so infrastructure is swappable and every piece is testable in isolation.
 
-## 🔌 Switching backends (the whole point of the design)
+```mermaid
+flowchart TB
+    Client["🌐 Any OpenAI client / curl"]
 
-Select a profile with `HEXRAG_PROFILES`; it deep-merges `settings-<profile>.yaml`
-over `settings.yaml`. No code changes.
+    subgraph api["🧭 Routers — api/"]
+        routes["/v1/chat/completions · /v1/completions<br/>/v1/embeddings · /ingest · /health"]
+    end
 
-### Local & private — Ollama
+    subgraph svc["⚙️ Services — services/"]
+        chat["ChatService"]
+        ingest["IngestService"]
+    end
+
+    subgraph cmp["🔌 Components — components/"]
+        llm["LLM<br/>mock · ollama · openai"]
+        emb["Embeddings<br/>mock · ollama · openai · hf"]
+        vs["Vector store<br/>simple · chroma"]
+    end
+
+    cfg["🗂️ Settings — YAML profiles<br/>(HEXRAG_PROFILES)"]
+
+    Client --> routes
+    routes --> chat
+    routes --> ingest
+    chat --> llm
+    chat --> emb
+    chat --> vs
+    ingest --> emb
+    ingest --> vs
+    cfg -. selects implementations .-> cmp
+```
+
+- **Routers** translate HTTP ↔ domain objects and nothing more.
+- **Services** orchestrate (retrieve → assemble prompt → complete; or load → chunk → embed → store).
+- **Components** are thin adapters behind LlamaIndex interfaces (`LLM`, `BaseEmbedding`, `BasePydanticVectorStore`), so a service depends on a *capability*, never a vendor.
+- **Settings** profiles pick which concrete implementation each component builds.
+
+## 🧠 How a question gets answered
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Client
+    participant R as chat router
+    participant S as ChatService
+    participant E as Embeddings
+    participant V as Vector store
+    participant L as LLM
+
+    U->>R: POST /v1/chat/completions (use_context)
+    R->>S: chat(messages)
+    S->>E: embed(question)
+    E-->>S: query vector
+    S->>V: top-k similar chunks
+    V-->>S: grounded context
+    S->>L: system + context + question
+    L-->>S: answer
+    S-->>R: answer + sources
+    R-->>U: OpenAI chat.completion (+ sources)
+```
+
+## 🔌 Swap backends
+
+Pick a profile with `HEXRAG_PROFILES`; it deep-merges `settings-<profile>.yaml` over
+`settings.yaml`. No code changes.
+
+| Concern | Setting | Options | Install |
+|---|---|---|---|
+| **LLM** | `llm.mode` | `mock` · `ollama` · `openai` | `--extra ollama` / `openai` |
+| **Embeddings** | `embedding.mode` | `mock` · `ollama` · `openai` · `huggingface` | matching extra |
+| **Vector store** | `vectorstore.database` | `simple` · `chroma` | `--extra chroma` |
+
+<table>
+<tr><th>🔒 Local & private — Ollama</th><th>☁️ OpenAI</th></tr>
+<tr><td>
 
 ```bash
-# install Ollama from https://ollama.com, then:
+# install from https://ollama.com
 ollama pull llama3.2
 ollama pull nomic-embed-text
 
@@ -107,111 +190,92 @@ uv sync --extra ollama
 HEXRAG_PROFILES=ollama uv run hexrag
 ```
 
-### OpenAI
+</td><td>
 
 ```bash
 uv sync --extra openai
-HEXRAG_PROFILES=openai OPENAI_API_KEY=sk-... uv run hexrag
+
+HEXRAG_PROFILES=openai \
+OPENAI_API_KEY=sk-... \
+uv run hexrag
 ```
 
-### Swappable components at a glance
+</td></tr>
+</table>
 
-| Concern       | Setting                | Options                                   | Install                 |
-|---------------|------------------------|-------------------------------------------|-------------------------|
-| LLM           | `llm.mode`             | `mock`, `ollama`, `openai`                | `--extra ollama/openai` |
-| Embeddings    | `embedding.mode`       | `mock`, `ollama`, `openai`, `huggingface` | matching extra          |
-| Vector store  | `vectorstore.database` | `simple`, `chroma`                        | `--extra chroma`        |
+## 📡 API reference
 
-## 🧠 How it works
+| Method & path | Description |
+|---|---|
+| `GET /health` | Liveness check |
+| `POST /v1/chat/completions` | Chat — OpenAI-compatible, RAG via `use_context` (supports SSE streaming) |
+| `POST /v1/completions` | Legacy text completion (delegates to chat) |
+| `POST /v1/embeddings` | Embed text — OpenAI-compatible |
+| `POST /ingest/text` | Ingest raw text |
+| `POST /ingest/file` | Ingest an uploaded file |
+| `GET /ingest/list` | List ingested documents |
 
-**Ingestion** — a file is read, split into chunks (`SentenceSplitter`), each chunk
-is stamped with its parent `doc_id`, embedded, and persisted to the vector store +
-doc store.
-
-**Query** — the incoming messages are split into system / history / last question;
-the question is embedded and used to retrieve the top-k chunks (optionally filtered
-by `doc_ids`); a `ContextChatEngine` assembles a grounded prompt and calls the LLM;
-the answer is returned with its source chunks.
-
-```
-HTTP client (OpenAI SDK / curl)
-        │  POST /v1/chat/completions
-        ▼
-   api/chat.py            ── routers: HTTP ↔ domain, OpenAI schema
-        │ injector.get(ChatService)
-        ▼
-   services/chat.py       ── retriever + chat engine orchestration
-     │        │        │
-     ▼        ▼        ▼
-  vector   embedding   llm        ── components: swappable adapters
-  store    model       (mock/ollama/openai)
-        ▲
-        │ reads
-   Settings (YAML profiles selected by HEXRAG_PROFILES)
-```
-
-Dependency injection (`injector`) supplies each layer with the one beneath it, so
-`ChatService` depends on an `LLM` interface and never knows which backend is behind
-it. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add a new backend.
-
-## 📂 Project layout
-
-```
-src/hexrag/
-  main.py · launcher.py · di.py · paths.py
-  settings/   loader.py (profile merge + ${ENV})   models.py (typed tree)
-  components/ llm.py  embedding.py  vector_store.py  node_store.py
-  services/   ingest.py  chat.py  index.py
-  api/        chat.py  completions.py  embeddings.py  ingest.py  health.py  openai_schema.py
-  ui/         app.py    (optional Gradio chat UI)
-tests/        contract · end-to-end · API-shape
-scripts/      ingest.py (CLI)
-settings*.yaml  default + mock/ollama/openai/test profiles
-```
+Full interactive schema at **`/docs`** while the server runs.
 
 ## 🛠️ Development
 
 ```bash
-make help      # list all commands
-make check     # lint + tests
-make format    # ruff fix + format
-make wipe      # delete ingested data
+make help      # list every target
+make check     # ruff + tests
+make format    # auto-fix & format
+make wipe      # clear ingested data (local_data/)
 ```
 
-Tests run fully offline against the mock profile.
+The test suite (component contracts, end-to-end RAG, OpenAI schema shape, and
+cross-restart persistence) runs **fully offline** against the mock profile.
 
-## 📡 API reference
+<details>
+<summary>📁 <b>Project structure</b></summary>
 
-| Method & path             | Description                                  |
-|---------------------------|----------------------------------------------|
-| `GET /health`             | Liveness check                               |
-| `POST /v1/chat/completions` | Chat, OpenAI-compatible (RAG via `use_context`) |
-| `POST /v1/completions`    | Legacy text completion (delegates to chat)   |
-| `POST /v1/embeddings`     | Embed text, OpenAI-compatible                |
-| `POST /ingest/text`       | Ingest raw text                              |
-| `POST /ingest/file`       | Ingest an uploaded file                      |
-| `GET /ingest/list`        | List ingested documents                      |
+```
+src/hexrag/
+  main.py · launcher.py · di.py · paths.py
+  settings/   loader.py  (profile merge + ${ENV})   models.py  (typed config tree)
+  components/ llm.py  embedding.py  vector_store.py  node_store.py
+  services/   ingest.py  chat.py  index.py
+  api/        chat.py  completions.py  embeddings.py  ingest.py  health.py  openai_schema.py
+  ui/         app.py    (optional Gradio chat UI — `--extra ui`)
+tests/        contract · end-to-end · API-shape · persistence
+scripts/      ingest.py (CLI)
+settings*.yaml  default + mock / ollama / openai / test profiles
+```
 
-Full interactive schema at `/docs` when the server is running.
+</details>
 
-## Troubleshooting
+<details>
+<summary>🤔 <b>Troubleshooting & FAQ</b></summary>
 
-**`ModuleNotFoundError: No module named 'hexrag'` when the path contains spaces.**
-`uv`'s editable install uses a bare-path `.pth` file, which Python's startup may
-skip if the project's absolute path contains spaces (e.g. `My Projects/`). Either
-clone into a space-free path, or install non-editable:
+**`ModuleNotFoundError: No module named 'hexrag'` (path contains spaces).**
+`uv`'s editable install uses a bare-path `.pth`, which Python may skip at startup if
+the project's absolute path contains spaces. Clone into a space-free path, or install
+non-editable:
 
 ```bash
 UV_NO_EDITABLE=1 uv sync
 UV_NO_EDITABLE=1 uv run hexrag
 ```
 
-**Run from the project root.** Settings are loaded from the current working
-directory by default; run commands from the repo root, or set
-`HEXRAG_SETTINGS_FOLDER=/path/to/settings`.
+**Run commands from the project root.** Settings load from the current working
+directory by default; or set `HEXRAG_SETTINGS_FOLDER=/path/to/settings`.
 
-## License
+**Where is my ingested data?** In `local_data/` (vector store + doc store), persisted
+between restarts. Remove it with `make wipe`.
 
-[Apache-2.0](LICENSE). This project began as a study of the architecture of
+**How do I add a new backend?** Add a branch in the relevant `components/*.py`, a
+`mode` literal in `settings/models.py`, an optional extra in `pyproject.toml`, and a
+profile YAML. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+</details>
+
+## 📄 License & credits
+
+[Apache-2.0](LICENSE). hexrag began as a study of the architecture of
 [PrivateGPT](https://github.com/zylon-ai/private-gpt) and was reimplemented from
-scratch in its own structure.
+scratch in its own structure and style.
+
+<div align="center"><sub>Built with FastAPI · LlamaIndex · uv</sub></div>
