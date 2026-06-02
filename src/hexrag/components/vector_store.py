@@ -44,7 +44,17 @@ class VectorStoreComponent:
         logger.info("Initializing vector store database=%s", database)
         match database:
             case "simple":
-                persist_path = local_data_path / "simple_vector_store.json"
+                # StorageContext.persist() writes embeddings to
+                # "default__vector_store.json" in the data dir. Reload from there
+                # if present so ingested data survives restarts; else start empty.
+                from llama_index.core.storage.storage_context import VECTOR_STORE_FNAME
+                from llama_index.core.vector_stores.simple import (
+                    DEFAULT_VECTOR_STORE,
+                    NAMESPACE_SEP,
+                )
+
+                fname = f"{DEFAULT_VECTOR_STORE}{NAMESPACE_SEP}{VECTOR_STORE_FNAME}"
+                persist_path = local_data_path / fname
                 if persist_path.exists():
                     self.vector_store = SimpleVectorStore.from_persist_path(str(persist_path))
                 else:

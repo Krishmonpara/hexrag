@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "hexrag: a self-hosted RAG agent with an OpenAI-compatible API"
+authors:
+  - family-names: Monpara
+    given-names: Krish
+version: 0.1.0
+date-released: 2026-06-01
+license: Apache-2.0
+repository-code: "https://github.com/Krishmonpara/hexrag"
+keywords:
+  - rag
+  - llm
+  - fastapi
+  - llama-index
+  - openai
+  - self-hosted

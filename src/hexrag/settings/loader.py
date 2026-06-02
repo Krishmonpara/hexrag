@@ -15,8 +15,16 @@ from typing import Any
 
 import yaml
 
-# Project root = three levels up from this file (src/hexrag/settings/loader.py).
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+def settings_folder() -> Path:
+    """Directory holding the settings*.yaml files.
+
+    Defaults to the current working directory (run hexrag from the project root),
+    overridable with HEXRAG_SETTINGS_FOLDER. Resolving relative to CWD rather than
+    the package location keeps this correct for both editable and installed
+    (copied) deployments.
+    """
+    return Path(os.environ.get("HEXRAG_SETTINGS_FOLDER", Path.cwd()))
 
 # Matches ${VAR} or ${VAR:default} inside YAML scalar values.
 _ENV_PATTERN = re.compile(r"\$\{(?P<name>[A-Za-z0-9_]+)(?::(?P<default>[^}]*))?\}")
@@ -70,7 +78,7 @@ def _load_profile(profile: str, folder: Path) -> dict[str, Any]:
 
 def load_active_settings(folder: Path | None = None) -> dict[str, Any]:
     """Merge all active profiles into a single settings dict."""
-    folder = folder or Path(os.environ.get("HEXRAG_SETTINGS_FOLDER", PROJECT_ROOT))
+    folder = folder or settings_folder()
     merged: dict[str, Any] = {}
     for profile in _active_profiles():
         merged = _deep_merge(merged, _load_profile(profile, folder))

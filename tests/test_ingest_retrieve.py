@@ -27,6 +27,23 @@ def test_ingest_then_retrieve_returns_sources(injector):
     assert completion.sources[0].doc_id == docs[0].doc_id
 
 
+def test_ingested_data_persists_across_a_new_injector(injector):
+    """Data ingested in one process is reloaded from disk by a fresh container."""
+    from hexrag.di import create_injector
+
+    ingest = injector.get(IngestService)
+    docs = ingest.ingest_text("persist.txt", "The capital of Atlantis is Marigold City.")
+
+    # Simulate a restart: brand-new injector -> components reload from disk.
+    fresh = create_injector()
+    assert any(d.doc_id == docs[0].doc_id for d in fresh.get(IngestService).list_ingested())
+    completion = fresh.get(ChatService).chat(
+        [ChatMessage(role=MessageRole.USER, content="What is the capital of Atlantis?")],
+        use_context=True,
+    )
+    assert any("Marigold City" in s.text for s in completion.sources)
+
+
 def test_chat_without_context_returns_no_sources(injector):
     chat = injector.get(ChatService)
     completion = chat.chat(
