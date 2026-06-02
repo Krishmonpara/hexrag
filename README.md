@@ -215,7 +215,11 @@ uv run hexrag
 | `POST /ingest/file` | Ingest an uploaded file |
 | `GET /ingest/list` | List ingested documents |
 
-Full interactive schema at **`/docs`** while the server runs.
+Full interactive schema at **`/docs`** while the server runs:
+
+<div align="center">
+  <img src="assets/swagger.png" alt="hexrag interactive API docs (Swagger UI)" width="720">
+</div>
 
 ## 🛠️ Development
 
