@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# hexrag runtime data (ingested vectors, doc store)
+local_data/
+
+# env
+.env

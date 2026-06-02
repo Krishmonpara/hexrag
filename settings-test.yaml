@@ -1,0 +1,8 @@
+# Profile used by the test suite. Offline + deterministic.
+llm:
+  mode: mock
+embedding:
+  mode: mock
+  embed_dim: 384
+vectorstore:
+  database: simple

@@ -1,0 +1,7 @@
+# Explicit fully-offline profile (same as default). Useful in tests/CI.
+llm:
+  mode: mock
+embedding:
+  mode: mock
+vectorstore:
+  database: simple

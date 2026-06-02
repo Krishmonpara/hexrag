@@ -1,0 +1,17 @@
+# Fully self-hosted / private profile. Requires a running Ollama
+# (https://ollama.com) and: ollama pull llama3.2 && ollama pull nomic-embed-text
+# Install deps: uv sync --extra ollama
+# Run: HEXRAG_PROFILES=ollama uv run hexrag
+llm:
+  mode: ollama
+embedding:
+  mode: ollama
+  embed_dim: 768  # nomic-embed-text output dimension
+vectorstore:
+  database: simple
+
+ollama:
+  api_base: ${OLLAMA_API_BASE:http://localhost:11434}
+  llm_model: ${OLLAMA_LLM_MODEL:llama3.2}
+  embedding_model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
+  request_timeout: 120.0

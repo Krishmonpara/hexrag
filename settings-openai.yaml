@@ -1,0 +1,16 @@
+# OpenAI-backed profile. Install deps: uv sync --extra openai
+# Set OPENAI_API_KEY in the environment.
+# Run: HEXRAG_PROFILES=openai OPENAI_API_KEY=sk-... uv run hexrag
+llm:
+  mode: openai
+embedding:
+  mode: openai
+  embed_dim: 1536  # text-embedding-3-small output dimension
+vectorstore:
+  database: simple
+
+openai:
+  api_base: ${OPENAI_API_BASE:https://api.openai.com/v1}
+  api_key: ${OPENAI_API_KEY:}
+  model: ${OPENAI_MODEL:gpt-4o-mini}
+  embedding_model: ${OPENAI_EMBED_MODEL:text-embedding-3-small}
